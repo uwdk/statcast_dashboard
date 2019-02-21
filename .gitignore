@@ -4,6 +4,8 @@
 
 # Session Data files
 .RData
+*.sqlite
+*.rds
 
 # Example code in package build process
 *-Ex.R
