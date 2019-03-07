@@ -241,13 +241,13 @@ final <- reactive(pitcher_data()[, display_cols(), with = FALSE])
 output$results <- renderDT({
     if(input$view_input == "raw"){
 	DT::datatable(final(), rownames = FALSE, selection = "none"
-      , filter = 'top') %>%
+      , filter = 'top', class = "compact stripe", options = list(pageLength = 25)) %>%
 	  formatPercentage(c("pct", "strike_pct", "swstr_pct"), 1) %>%
 	  formatRound(c("avg_mph", "avg_ev", "rpm_mph"), 1) %>%
 	  formatRound("avg_rpm", 0)
 	} else {
 	DT::datatable(final(), rownames = FALSE, selection = "none"
-      , filter = 'top')}
+      , filter = 'top', class = "compact stripe", options = list(pageLength = 25))}
   })
 }
 # ----

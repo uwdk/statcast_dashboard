@@ -15,6 +15,11 @@ library(magrittr)
 library(jsonlite)
 library(xml2)
 
+#create data folders if not exists
+if(dir.exists("data") == FALSE){
+	dir.create("data")
+}
+
 # ----
 
 scrape_statcast <- function(season, type){#type is "resp_batter_id" or "pitcher" or "batter" -- not sure why front end uses first batter
