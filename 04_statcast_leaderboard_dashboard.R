@@ -3,8 +3,8 @@
 library(data.table)
 library(magrittr)
 library(lubridate)
-library(DBI)
-library(RSQLite)
+# library(DBI)
+# library(RSQLite)
 library(shiny)
 library(DT)
 library(ggplot2)
@@ -41,14 +41,17 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
 		#set min attempts to filter data for calculations
+		uiOutput("season_output"),
+
 		radioButtons("type_input", "Type", choices = c("batter", "pitcher"), selected = "batter"),
 
 		numericInput("min_attempts_input", "Set minimum threshold", 0),
 
 		uiOutput("player_output"),
 
-		radioButtons("view_input", "View by", choices = c("raw", "z-score", "percentile"), selected = "raw")
+		radioButtons("view_input", "View by", choices = c("raw", "z-score", "percentile"), selected = "raw"),
 
+		uiOutput("select_cols_output")
 		),
 
       mainPanel(DTOutput("results"))
@@ -56,10 +59,28 @@ ui <- fluidPage(
 ))
 
 server <- function(input, output) {
+
+	output$season_output <- renderUI({
+		sliderInput("season_input", "Select Season",
+		min = leaderboard_data[, min(season)],
+		max = leaderboard_data[, max(season)],
+		value = c(min, max),
+		step = 1,
+		sep="",
+		ticks = FALSE)
+	})
+
+	seasons_to_include <- reactive(
+		if(is.null(input$season_input[1]) == TRUE) {leaderboard_data[, unique(season)]
+		} else {
+		input$season_input[1]:input$season_input[2]
+		}
+		)
+
 	cols_to_scale <- sapply(names(leaderboard_data), function(x) grepl("[A-Za-z]", leaderboard_data[[x]]) %>% any()) %>% grep(FALSE, .) %>% names(leaderboard_data)[.]  %>% .[.!="season"] %>% .[.!="player_id"]
 
-	data <- reactive(
-		leaderboard_data[attempts >= input$min_attempts_input & player_type == input$type_input] %>%
+	data <- reactive(#filter based on shiny selections
+		leaderboard_data[attempts >= input$min_attempts_input & player_type == input$type_input & season %in% seasons_to_include()] %>%
 
 		#add in zscore and percentile conversion
 		.[, paste0("z_", cols_to_scale):= lapply(.SD, function(x) round(scale(x)[,1], digits=3)), .SDcols = cols_to_scale ] %>%
@@ -81,19 +102,30 @@ server <- function(input, output) {
 			}
 	)
 
+	output$select_cols_output <- renderUI({
+		selectInput("select_cols_input", "Select Columns",
+				cols_to_scale,
+				multiple = TRUE)
+		})
+
+	selected_cols <- reactive(if(is.null(input$select_cols_input) == TRUE){
+		cols_to_scale
+	} else {input$select_cols_input}
+	)
+
 	#FUTURE - make more dynamic
 	display_cols <- reactive(if(input$view_input == "raw") {
 		c("name",
 		"season",
-		cols_to_scale)
+		selected_cols())
 	} else if(input$view_input == "z-score") {
 		c("name",
 		"season",
-		paste0("z_", cols_to_scale))
+		paste0("z_", selected_cols()))
 	} else if(input$view_input == "percentile") {
 		c("name",
 		"season",
-		paste0("p_", cols_to_scale))
+		paste0("p_", selected_cols()))
 	})
 
 	output$results <- renderDT({
